@@ -26,9 +26,16 @@ DAY_LINE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 PRICE_ONLY_PATTERN = re.compile(r"^\d+(?:[,.]\d+)?\s*K\u010d$", re.IGNORECASE)
-ALLERGEN_ONLY_PATTERN = re.compile(r"^[/(]?[Aa]lergeny?.*$|^/\d", re.IGNORECASE)
+ALLERGEN_ONLY_PATTERN = re.compile(
+    r"^(?:[/(]?\s*[Aa]lergeny?.*|\(?\s*\d+[a-z]?(?:\s*,\s*\d+[a-z]?)*\s*\)?|/\s*\d+[a-z]?(?:\s*,\s*\d+[a-z]?)*\s*)$",
+    re.IGNORECASE,
+)
 INLINE_ALLERGEN_PATTERN = re.compile(
-    r"\s*(?:[(-]?\s*[Aa]lergeny?\s*:?[\s\d,./-]*[)-]?|/\s*\d+(?:\s*,\s*\d+)*)\s*$",
+    r"\s*(?:[(-]?\s*[Aa]lergeny?\s*:?\s*[\s\da-z,./-]*[)-]?|/\s*\d+[a-z]?(?:\s*,\s*\d+[a-z]?)*|\(\s*\d+[a-z]?(?:\s*,\s*\d+[a-z]?)*\s*\))\s*$",
+    re.IGNORECASE,
+)
+WEIGHT_ONLY_PATTERN = re.compile(
+    r"^\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l|cl|ks)\.?$",
     re.IGNORECASE,
 )
 NOISE_PATTERN = re.compile(
@@ -234,6 +241,8 @@ def _parse_week_lines(lines: list[str], stop_markers: list[str] | None = None) -
             continue
         if ALLERGEN_ONLY_PATTERN.match(line):
             continue
+        if WEIGHT_ONLY_PATTERN.match(line):
+            continue
 
         normalized_line = _normalize_menu_line(line)
         if not normalized_line:
@@ -263,6 +272,9 @@ def _normalize_menu_line(line: str) -> str:
     while previous != line:
         previous = line
         line = INLINE_ALLERGEN_PATTERN.sub("", line).strip(" -;,/")
+
+    if WEIGHT_ONLY_PATTERN.match(line):
+        return ""
 
     line = re.sub(r"\s+\(\s+", " (", line)
     line = re.sub(r"\s+\)", ")", line)
