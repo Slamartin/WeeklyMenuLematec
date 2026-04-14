@@ -11,6 +11,7 @@ from urllib.parse import urljoin
 import pdfplumber
 import requests
 from bs4 import BeautifulSoup
+from pdfplumber.page import Page
 
 
 DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday"]
@@ -25,7 +26,10 @@ DAY_LINE_PATTERN = re.compile(
     r"^(Pond\u011bl\u00ed|\u00dater\u00fd|St\u0159eda|\u010ctvrtek|P\u00e1tek)\b(?:\s+\d{1,2}\.\d{1,2}\.?(?:\d{4})?)?$",
     re.IGNORECASE,
 )
-PRICE_ONLY_PATTERN = re.compile(r"^\d+(?:[,.]\d+)?\s*K\u010d$", re.IGNORECASE)
+PRICE_ONLY_PATTERN = re.compile(
+    r"^\d+(?:[,.]\d+)?(?:\s*K\u010d|,-)$",
+    re.IGNORECASE,
+)
 ALLERGEN_ONLY_PATTERN = re.compile(
     r"^(?:[/(]?\s*[Aa]lergeny?.*|\(?\s*\d+[a-z]?(?:\s*,\s*\d+[a-z]?)*\s*\)?|/\s*\d+[a-z]?(?:\s*,\s*\d+[a-z]?)*\s*)$",
     re.IGNORECASE,
@@ -164,17 +168,15 @@ class WeeklyMenuService:
         pdf_response = self.session.get(pdf_url, timeout=40)
         pdf_response.raise_for_status()
 
-        pdf_text_parts: list[str] = []
+        pdf_lines: list[str] = []
         with pdfplumber.open(BytesIO(pdf_response.content)) as pdf:
             for page in pdf.pages:
-                page_text = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
-                if page_text.strip():
-                    pdf_text_parts.append(page_text)
+                pdf_lines.extend(_extract_pdf_lines(page))
 
-        if not pdf_text_parts:
+        if not pdf_lines:
             raise MenuScrapeError("Cookpoint weekly PDF did not contain extractable text.")
 
-        parsed = _parse_week_lines(_clean_lines("\n".join(pdf_text_parts)))
+        parsed = _parse_week_lines(_clean_lines("\n".join(pdf_lines)))
         if not any(parsed["menu"].values()):
             raise MenuScrapeError("Cookpoint weekly PDF was downloaded, but the menu could not be parsed.")
         return parsed["menu"], parsed["week_label"]
@@ -209,10 +211,59 @@ def _clean_lines(text: str) -> list[str]:
 
     cleaned_lines: list[str] = []
     for raw_line in text.splitlines():
-        line = re.sub(r"\s+", " ", raw_line).strip(" -\t")
+        line = re.sub(r"\s+", " ", raw_line).strip()
         if line:
             cleaned_lines.append(line)
     return cleaned_lines
+
+
+def _extract_pdf_lines(page: Page) -> list[str]:
+    words = page.extract_words(
+        x_tolerance=1,
+        y_tolerance=2,
+        keep_blank_chars=False,
+        use_text_flow=False,
+    )
+    if not words:
+        page_text = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
+        return _clean_lines(page_text)
+
+    line_groups: list[list[dict[str, Any]]] = []
+    current_group: list[dict[str, Any]] = []
+    current_top: float | None = None
+
+    for word in sorted(words, key=lambda item: (item["top"], item["x0"])):
+        if current_top is None or abs(word["top"] - current_top) <= 2:
+            current_group.append(word)
+            if current_top is None:
+                current_top = word["top"]
+            continue
+
+        line_groups.append(current_group)
+        current_group = [word]
+        current_top = word["top"]
+
+    if current_group:
+        line_groups.append(current_group)
+
+    extracted_lines: list[str] = []
+    for group in line_groups:
+        ordered_group = sorted(group, key=lambda item: item["x0"])
+        texts = [item["text"].strip() for item in ordered_group if item["text"].strip()]
+        if not texts:
+            continue
+
+        last_text = texts[-1]
+        if PRICE_ONLY_PATTERN.match(last_text) and ordered_group[-1]["x0"] >= 450:
+            main_line = " ".join(texts[:-1]).strip()
+            if main_line:
+                extracted_lines.append(main_line)
+            extracted_lines.append(last_text)
+            continue
+
+        extracted_lines.append(" ".join(texts))
+
+    return extracted_lines
 
 
 def _parse_week_lines(lines: list[str], stop_markers: list[str] | None = None) -> dict[str, Any]:
@@ -250,7 +301,9 @@ def _parse_week_lines(lines: list[str], stop_markers: list[str] | None = None) -
 
         if PRICE_ONLY_PATTERN.match(normalized_line):
             if menu[current_day]:
-                menu[current_day][-1] = f"{menu[current_day][-1]} - {normalized_line}"
+                menu[current_day][-1] = (
+                    f"{menu[current_day][-1]} - {_normalize_price_text(normalized_line)}"
+                )
             continue
 
         menu[current_day].append(normalized_line)
@@ -263,7 +316,11 @@ def _parse_week_lines(lines: list[str], stop_markers: list[str] | None = None) -
 
 
 def _normalize_menu_line(line: str) -> str:
-    line = re.sub(r"\s+", " ", line).strip(" -")
+    line = re.sub(r"\s+", " ", line).strip()
+    if PRICE_ONLY_PATTERN.match(line):
+        return _normalize_price_text(line)
+
+    line = line.strip(" -")
     if not line:
         return ""
 
@@ -284,3 +341,10 @@ def _normalize_menu_line(line: str) -> str:
     if line.isdigit():
         return ""
     return line
+
+
+def _normalize_price_text(price: str) -> str:
+    normalized_price = price.strip()
+    if normalized_price.endswith(",-"):
+        return f"{normalized_price[:-2].strip()} K\u010d"
+    return normalized_price
