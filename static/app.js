@@ -138,11 +138,35 @@ function renderRestaurant(containerId, restaurantData) {
       empty.textContent = "No meals were parsed for this day.";
       panel.appendChild(empty);
     } else {
-      const list = document.createElement("ul");
-      list.className = "menu-list";
-      meals.forEach((meal) => {
-        const item = document.createElement("li");
-        item.textContent = meal;
+      const list = document.createElement("div");
+      list.className = "meal-stack";
+      meals.forEach((meal, index) => {
+        const item = document.createElement("article");
+        item.className = "meal-card";
+
+        const order = document.createElement("div");
+        order.className = "meal-order";
+        order.textContent = String(index + 1).padStart(2, "0");
+
+        const content = document.createElement("div");
+        content.className = "meal-content";
+
+        const { name, price } = splitMeal(meal);
+
+        const title = document.createElement("p");
+        title.className = "meal-title";
+        title.textContent = name;
+        content.appendChild(title);
+
+        if (price) {
+          const priceTag = document.createElement("span");
+          priceTag.className = "meal-price";
+          priceTag.textContent = price;
+          content.appendChild(priceTag);
+        }
+
+        item.appendChild(order);
+        item.appendChild(content);
         list.appendChild(item);
       });
       panel.appendChild(list);
@@ -172,4 +196,16 @@ function escapeHtml(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function splitMeal(meal) {
+  const match = meal.match(/^(.*?)(?:\s+-\s+(\d+(?:[.,]\d+)?\s*Kč))$/i);
+  if (!match) {
+    return { name: meal, price: "" };
+  }
+
+  return {
+    name: match[1].trim(),
+    price: match[2].trim(),
+  };
 }

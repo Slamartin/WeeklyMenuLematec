@@ -227,14 +227,53 @@ h1 {
   font-size: 1.4rem;
 }
 
-.menu-list {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--ink);
+.meal-stack {
+  display: grid;
+  gap: 12px;
 }
 
-.menu-list li + li {
-  margin-top: 10px;
+.meal-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 242, 231, 0.85));
+  border: 1px solid rgba(48, 58, 48, 0.1);
+}
+
+.meal-order {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 14px;
+  background: #f1dfba;
+  color: var(--primary-deep);
+  font-family: "Fraunces", serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.meal-content {
+  display: grid;
+  gap: 10px;
+}
+
+.meal-title {
+  margin: 0;
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.meal-price {
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(184, 79, 43, 0.1);
+  color: var(--primary-deep);
+  font-size: 0.92rem;
+  font-weight: 800;
 }
 
 .empty-copy {

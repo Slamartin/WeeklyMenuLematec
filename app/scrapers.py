@@ -27,6 +27,10 @@ DAY_LINE_PATTERN = re.compile(
 )
 PRICE_ONLY_PATTERN = re.compile(r"^\d+(?:[,.]\d+)?\s*K\u010d$", re.IGNORECASE)
 ALLERGEN_ONLY_PATTERN = re.compile(r"^[/(]?[Aa]lergeny?.*$|^/\d", re.IGNORECASE)
+INLINE_ALLERGEN_PATTERN = re.compile(
+    r"\s*(?:[(-]?\s*[Aa]lergeny?\s*:?[\s\d,./-]*[)-]?|/\s*\d+(?:\s*,\s*\d+)*)\s*$",
+    re.IGNORECASE,
+)
 NOISE_PATTERN = re.compile(
     r"^(Objednat|Objedn\u00e1vka|St\u00e1hnout menu v PDF|Zm\u011bna menu vyhrazena|Pol\u00e9vka je ke ka\u017ed\u00e9mu j\u00eddlu zdarma).*$",
     re.IGNORECASE,
@@ -254,6 +258,12 @@ def _normalize_menu_line(line: str) -> str:
     if not line:
         return ""
 
+    # Remove trailing allergen notations such as "/1,3,7" or "(Alergeny: 1,3,7)".
+    previous = None
+    while previous != line:
+        previous = line
+        line = INLINE_ALLERGEN_PATTERN.sub("", line).strip(" -;,/")
+
     line = re.sub(r"\s+\(\s+", " (", line)
     line = re.sub(r"\s+\)", ")", line)
     line = re.sub(r"\s+,", ",", line)
@@ -262,4 +272,3 @@ def _normalize_menu_line(line: str) -> str:
     if line.isdigit():
         return ""
     return line
-
