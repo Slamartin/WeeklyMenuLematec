@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weekly Lunch Menu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Manrope:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Brno lunch overview</p>
+          <h1>Weekly menus from Bistro 22 and Cookpoint</h1>
+          <p class="hero-copy">
+            One clean view for the current work week, with a quick today-only mode and live scraping behind the scenes.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="reload-button" class="button button-secondary" type="button">Refresh</button>
+          <button id="today-button" class="button" type="button">Today only</button>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <div>
+          <p class="toolbar-label">Current week</p>
+          <p id="week-label" class="toolbar-value">Loading...</p>
+        </div>
+        <div>
+          <p class="toolbar-label">Status</p>
+          <p id="status-text" class="toolbar-value">Fetching menus</p>
+        </div>
+      </section>
+
+      <main id="app">
+        <section id="loading-state" class="state-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Loading weekly menus...</p>
+        </section>
+
+        <section id="error-state" class="state-card hidden">
+          <h2>Something went wrong</h2>
+          <p id="error-message">We could not load the menus right now.</p>
+        </section>
+
+        <section id="menu-content" class="hidden">
+          <div id="day-tabs" class="day-tabs" aria-label="Week day selector"></div>
+          <div class="restaurant-grid">
+            <section class="restaurant-card">
+              <div class="restaurant-heading">
+                <div>
+                  <p class="restaurant-kicker">Restaurant</p>
+                  <h2>Bistro 22</h2>
+                </div>
+                <p class="badge">HTML source</p>
+              </div>
+              <div id="bistro22-content" class="day-grid"></div>
+            </section>
+
+            <section class="restaurant-card">
+              <div class="restaurant-heading">
+                <div>
+                  <p class="restaurant-kicker">Restaurant</p>
+                  <h2>Cookpoint</h2>
+                </div>
+                <p class="badge">PDF source</p>
+              </div>
+              <div id="cookpoint-content" class="day-grid"></div>
+            </section>
+          </div>
+          <section id="warning-box" class="warning-box hidden"></section>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
